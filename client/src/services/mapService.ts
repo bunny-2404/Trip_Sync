@@ -241,7 +241,7 @@ export const searchPlaces = async (query: string, location?: { lat: number, lng:
         // Fallback to autocomplete API as text-search returned 404
         let url = `https://api.olamaps.io/places/v1/autocomplete?input=${encodeURIComponent(query)}&api_key=${API_KEY}`;
         if (location) {
-            url += `&location=${location.lat},${location.lng}`;
+            url += `&location=${location.lat},${location.lng}&radius=50000&strictbounds=true`; // 50km radius and prefer nearby
         }
 
         const response = await fetch(url);

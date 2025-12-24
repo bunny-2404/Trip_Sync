@@ -145,7 +145,9 @@ export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: Tri
             const map = createMap(mapRef.current.id, [72.8777, 19.0760], 15);
             mapInstance.current = map;
 
-            map.on('dragstart', () => setIsAutoCentering(false));
+            if (map && map.on) {
+                map.on('dragstart', () => setIsAutoCentering(false));
+            }
 
         } catch (e) {
             console.error("Error initializing Ola Map:", e);
@@ -159,20 +161,40 @@ export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: Tri
         if (!mapInstance.current) return;
 
         const fetchRoute = async () => {
-            if (currentTrip.from !== 'Current Location' && currentTrip.to) {
+            if (currentTrip.from && currentTrip.to) { // Changed to check both existence
                 setDirections(null);
                 setCurrentLegIndex(0);
                 setCurrentStepIndex(0);
 
-                const origin = getRouteLocation(currentTrip.from);
-                const destination = getRouteLocation(currentTrip.to);
+                // Helper to ensure we have coordinates
+                const resolveCoords = async (loc: string): Promise<{ lat: number, lng: number } | null> => {
+                    const coordMatch = getRouteLocation(loc);
+                    if (coordMatch && typeof coordMatch !== 'string') return coordMatch;
 
-                if (!origin || !destination) {
-                    setMapError({ type: 'generic', message: "Invalid origin or destination format." });
+                    // If it's a string, try to geocode/search it
+                    try {
+                        // Use searchPlaces to find the location
+                        const results = await searchPlaces(loc);
+                        if (results && results.length > 0 && results[0].geometry?.location) {
+                            return results[0].geometry.location;
+                        }
+                    } catch (e) {
+                        console.error("Geocoding failed for", loc, e);
+                    }
+                    return null;
+                };
+
+                const originCoords = await resolveCoords(currentTrip.from);
+                const destCoords = await resolveCoords(currentTrip.to);
+
+                if (!originCoords || !destCoords) {
+                    if (isMounted) setMapError({ type: 'generic', message: "Could not resolve locations. Please use more specific addresses." });
                     return;
                 }
 
-                const result = await getDirections(origin, destination);
+                if (!isMounted) return;
+
+                const result = await getDirections(originCoords, destCoords);
 
                 if (!isMounted) return;
 
@@ -184,9 +206,8 @@ export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: Tri
                     drawRoute(mapInstance.current, result.routes[0].geometry);
 
                     // Extract metrics
-                    // Assuming OSRM structure: routes[0].distance (meters), routes[0].duration (seconds)
-                    const totalDistance = result.routes[0].distance;
-                    const totalDuration = result.routes[0].duration;
+                    const totalDistance = result.routes[0].distance || 0;
+                    const totalDuration = result.routes[0].duration || 0;
 
                     setTripMetrics({
                         eta: new Date(Date.now() + totalDuration * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -195,7 +216,7 @@ export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: Tri
                     });
 
                 } else {
-                    setMapError({ type: 'generic', message: `Could not fetch directions.` });
+                    if (isMounted) setMapError({ type: 'generic', message: `Could not fetch directions.` });
                 }
             }
         };
