@@ -69,22 +69,30 @@ export const getDirections = async (origin: string | { lat: number, lng: number 
             }
         });
 
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-            const data = await response.json();
-            return data;
-        } else {
-            // Assume it's a raw polyline string if not JSON
-            const text = await response.text();
-            // Try standard polyline decoding if it looks like one
-            try {
-                const geometry = polyline.toGeoJSON(text);
-                return { status: 'OK', routes: [{ geometry: geometry }] };
-            } catch (e) {
-                console.error("Failed to decode polyline:", e);
-                return null;
+        const text = await response.text();
+
+        try {
+            const data = JSON.parse(text);
+            if (data.status === 'SUCCESS' || data.routes) {
+                return data;
             }
+            if (data.geocoded_waypoints) return data;
+        } catch (e) {
+            // Not valid JSON
         }
+
+        // Try standard polyline decoding if it looks like one
+        try {
+            const geometry = polyline.toGeoJSON(text);
+            if (geometry.coordinates.length > 0) {
+                return { status: 'OK', routes: [{ geometry: geometry }] };
+            }
+        } catch (e) {
+            console.error("Failed to decode polyline or parse JSON:", text.substring(0, 50));
+            return null;
+        }
+
+        return null; // Return null if neither worked
     } catch (error) {
         console.error("Error fetching directions:", error);
         return null;
@@ -223,6 +231,7 @@ export const searchPlaces = async (query: string, location?: { lat: number, lng:
 
         if (data && data.predictions) {
             return data.predictions.map((p: any) => ({
+                id: p.place_id,
                 place_id: p.place_id,
                 name: p.description, // Autocomplete uses description
                 geometry: p.geometry,
