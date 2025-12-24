@@ -1,0 +1,8 @@
+{
+  "name": "FINAL_APP",
+  "description": "A smart travel companion for trip planning, live navigation, and tracking your journey history.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}
