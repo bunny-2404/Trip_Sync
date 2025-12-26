@@ -1,5 +1,5 @@
-
 import React from 'react';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { AppProvider, useAppContext } from './src/contexts/AppContext';
 import { Screen } from './src/types';
 import { SplashScreen } from './src/screens/SplashScreen';
@@ -12,17 +12,30 @@ import { HomeScreen } from './src/screens/HomeScreen';
 import { NavigationScreen } from './src/screens/NavigationScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 
+const libraries: ("places" | "geometry")[] = ["places", "geometry"];
+
 const Content = () => {
-    const { screen, isNavigating, currentTripDetails, endNavigation } = useAppContext();
+    const { screen, currentTripDetails, endNavigation } = useAppContext();
 
-    // If navigation is active, force NavigationScreen regardless of 'screen' state?
-    // In original App.tsx, NavigationScreen was conditionally rendered or switched to.
-    // Generally 'screen' state controls view.
-    // But NavigationScreen takes props?
-    // In original App.tsx, NavigationScreen took { tripDetails, onCheckOut }.
-    // If screen is Screen.Navigation, we assume currentTripDetails is set in context.
+    // Load Google Maps API globally
+    const { isLoaded, loadError } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+        libraries: libraries
+    });
 
-    // Check if currentTripDetails is available when screen is Navigation.
+    if (loadError) {
+        return <div className="h-screen flex items-center justify-center text-red-500">Error loading maps: {loadError.message}</div>;
+    }
+
+    if (!isLoaded) {
+        // You might want to show a splash screen or a loading spinner here while maps load
+        // But for now, returning null or a spinner is fine. 
+        // If we return SplashScreen, it might flicker if app logic is also deciding Screen.Splash.
+        // Let's just return a simple loader or keep existing behavior if it wasn't blocking.
+        // However, providing the script early is the goal.
+        return <div className="h-screen flex items-center justify-center bg-gray-900 text-white">Loading Maps...</div>;
+    }
 
     switch (screen) {
         case Screen.Splash: return <SplashScreen />;

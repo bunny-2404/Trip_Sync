@@ -14,11 +14,7 @@ const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
 export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: TripDetails, onCheckOut: () => void }) => {
     const { theme } = useAppContext();
-    const { isLoaded, loadError } = useJsApiLoader({
-        id: 'google-map-script',
-        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-        libraries: libraries
-    });
+    // Script is loaded globally in App.tsx now
 
     const [showAddStopModal, setShowAddStopModal] = useState(false);
     const mapRef = useRef<google.maps.Map | null>(null);
@@ -140,7 +136,7 @@ export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: Tri
 
     // Calculate Route
     useEffect(() => {
-        if (!isLoaded || !currentTrip.from || !currentTrip.to) return;
+        if (!currentTrip.from || !currentTrip.to) return;
 
         const fetchRoute = async () => {
             // Helper to resolve location
@@ -180,7 +176,7 @@ export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: Tri
         };
 
         fetchRoute();
-    }, [isLoaded, currentTrip.from, currentTrip.to, waypoints]);
+    }, [currentTrip.from, currentTrip.to, waypoints]);
 
     // Track User Location
     useEffect(() => {
@@ -235,14 +231,6 @@ export const NavigationScreen = ({ tripDetails, onCheckOut }: { tripDetails: Tri
         };
     }, [isAutoCentering, directions, currentStepIndex]);
 
-
-    if (loadError) {
-        return <div className="flex items-center justify-center h-full text-red-500">Error loading maps</div>;
-    }
-
-    if (!isLoaded) {
-        return <div className="flex items-center justify-center h-full text-gray-500">Loading Maps...</div>;
-    }
 
     return (
         <div className="text-gray-900 dark:text-white h-full flex flex-col relative">
